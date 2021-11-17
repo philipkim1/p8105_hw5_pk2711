@@ -2,7 +2,10 @@
 title: "Homework 5"
 author: "Philip Kim"
 date: "11/16/2021"
-output: github_document
+output:
+  github_document:
+    toc: true
+    toc_depth: 6
 ---
 
 ```{r setup, include=FALSE}
@@ -26,7 +29,7 @@ scale_fill_discrete = scale_fill_viridis_d
 
 # Problem 1
 
-```{r}
+```{r, message = FALSE}
 homicide_df = 
   read_csv("./data/homicide-data.csv", na = c("", "Unknown")) %>% 
   mutate(
@@ -40,7 +43,7 @@ homicide_df =
   filter(city_state != "TulsaAL")
 ```
 
-Let's focus on Baltimore, MD
+## Single city/Baltimore, MD
 
 ```{r}
 baltimore_df = 
@@ -62,7 +65,7 @@ baltimore_test %>%
   broom::tidy()
 ```
 
-Let's try to iterate across cities!
+## Function
 
 ```{r}
 prop_test_function = function(city_df) {
@@ -87,7 +90,7 @@ homicide_df %>%
   prop_test_function()
 ```
 
-Now, let's iterate across all cities.
+## Iteration across cities
 
 ```{r}
 results_df = 
@@ -102,7 +105,7 @@ results_df =
   select(city_state, estimate, starts_with("conf"))
 ```
 
-Try to make a plot showing estimates and confidence intervals.
+## Plot with estimate/CI
 
 ```{r}
 results_df %>% 
@@ -116,9 +119,70 @@ results_df %>%
 # Problem 2
 
 ```{r}
-tibble(
-  files = list.files("./data/zip_data/"))
+files = list.files("./data/zip_data/")
 ```
+
+## Function
+
+```{r}
+read_files_function = function(x) {
+  
+  path = str_c("./data/zip_data/", x)
+  
+  y = read_csv(path)
+  
+  return(y)
+}
+```
+
+## Iterate/read in data and create new variable
+
+```{r, message = FALSE}
+study_df = 
+  tibble(
+    files = list.files("./data/zip_data/")) %>% 
+  mutate(
+    data = map(files, read_files_function))
+```
+
+## Tidy data
+
+```{r}
+tidy_study_df = 
+  study_df %>% 
+  separate(files, into = c("arm", "subject_id"), sep = "_") %>% 
+    mutate(
+      subject_id = str_remove(subject_id, ".csv"),
+      arm = ifelse(arm == "con", "control", "experiment"),
+      subject_id = as.numeric(subject_id),
+      subject_id = ifelse(arm == "experiment", subject_id + 10, subject_id + 0),
+      subject_id = as.factor(subject_id)) %>% 
+  unnest(data) %>% 
+  pivot_longer(
+    week_1:week_8,
+    names_to = "week",
+    names_prefix = "week_",
+    values_to = "observation") %>% 
+  mutate(
+    week = as.factor(week))
+```
+
+## Spaghetti Plot
+
+```{r}
+tidy_study_df %>% 
+  ggplot(aes(x = week, y = observation, color = arm)) + 
+  geom_line(aes(group = subject_id)) +
+  labs(
+    x = "Week",
+    y = "Observation Values",
+    color = "Arm",
+    title = "Control and Experimental Arm \nin Longitudinal Study") +
+   theme(plot.title = element_text(hjust = 0.5))
+```
+
+## Comments on Differences
+
 
 # Problem 3
 
